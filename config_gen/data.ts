@@ -94,6 +94,21 @@ export const data: Array<ConfigEntry> = [
         default: "avc10000,hevc10000",
     },
     {
+        id: "RecordingCdn",
+        name: "录制CDN",
+        type: "string?",
+        configType: "room",
+        default: "",
+    },
+    {
+        id: "CustomCn01Sid",
+        name: "CN01 自定义 SID",
+        type: "string?",
+        configType: "room",
+        default: "",
+    },
+
+    {
         id: "FileNameRecordTemplate",
         name: "录制文件名模板",
         type: "string?",

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
@@ -281,6 +282,55 @@ namespace BililiveRecorder.Core.Recording
             return qns;
         }
 
+
+        private static readonly Regex CdnRegex = new(@"[?&]cdn=([^&]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static string? ExtractCdnFromExtra(string? extra)
+        {
+            if (string.IsNullOrEmpty(extra)) return null;
+
+            // 使用正则表达式匹配 ?cdn=xxx 或 &cdn=xxx，忽略大小写
+            var match = CdnRegex.Match(extra);
+
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        private Api.Model.RoomPlayInfo.UrlInfoItem? SelectCdnByConfiguration(Api.Model.RoomPlayInfo.UrlInfoItem[] candidates, string recordingCdn)
+        {
+            var cdnList = recordingCdn.Split(',')
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToArray();
+
+            if (cdnList.Length == 0) return null;
+
+            // 预先计算所有候选项的 CDN 名称，避免重复计算
+            var candidatesWithCdn = candidates
+                .Select(x => new { UrlInfo = x, CdnName = ExtractCdnFromExtra(x.Extra) })
+                .Where(x => !string.IsNullOrEmpty(x.CdnName))
+                .ToArray();
+            var availableCdns = candidatesWithCdn.Select(x => x.CdnName).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+            // 按配置的 CDN 顺序查找匹配项
+            var matched = cdnList
+                .Select(configCdn => candidatesWithCdn.FirstOrDefault(x =>
+                    string.Equals(x.CdnName, configCdn, StringComparison.OrdinalIgnoreCase)))
+                .FirstOrDefault(x => x != null);
+
+            if (matched != null)
+            {
+                this.logger.Information("匹配 CDN 匹配成功。当前CDN {Cdn}, 可用CDN {Available}",
+                    matched.CdnName);
+                return matched.UrlInfo;
+            }
+
+            // 记录未匹配的情况
+            this.logger.Warning("没有符合设置要求的 CDN，保持随机选择。设置CDN {CdnList}, 可用CDN {Available}",
+                cdnList, availableCdns);
+
+            return null;
+        }
+
         protected async Task<(string url, StreamCodecQn codecQn)> FetchStreamUrlAsync(int roomid)
         {
             var allowedQn = ParseAllowedQn(this.room.RoomConfig.RecordingQuality);
@@ -292,7 +342,7 @@ namespace BililiveRecorder.Core.Recording
                 return (urlFromScript, new StreamCodecQn { Codec = StreamCodec.AVC, Qn = -1 });
             }
 
-            const int DefaultQn = 10000;
+            const int DefaultQn = 25000;
             var codecItems = await this.apiClient.GetCodecItemInStreamUrlAsync(roomid: roomid, qn: DefaultQn).ConfigureAwait(false);
             //?? throw new Exception("no supported stream url, qn: " + DefaultQn);
 
@@ -358,9 +408,52 @@ namespace BililiveRecorder.Core.Recording
             // https:// xy0x0x0x0xy.mcdn.bilivideo.cn:486
             var url_infos_without_mcdn = url_infos.Where(x => !x.Host.Contains(".mcdn.")).ToArray();
 
-            var url_info = url_infos_without_mcdn.Length != 0
-                ? url_infos_without_mcdn[this.random.Next(url_infos_without_mcdn.Length)]
-                : url_infos[this.random.Next(url_infos.Length)];
+            // Prefer non-mcdn hosts if available
+            var candidates = url_infos_without_mcdn.Length != 0 ? url_infos_without_mcdn : url_infos;
+
+            // 1. 默认先随机选择 CDN，并提取 cdn name
+            var url_info = candidates[this.random.Next(candidates.Length)];
+            var cdnName = ExtractCdnFromExtra(url_info.Extra);
+
+            // 2. 检查 RecordingCdn 是否不为空，如果不为空则运行 CDN 选择
+            var recordingCdn = this.room.RoomConfig.RecordingCdn;
+            if (!string.IsNullOrWhiteSpace(recordingCdn))
+            {
+                var selectedUrlInfo = this.SelectCdnByConfiguration(candidates, recordingCdn!);
+                if (selectedUrlInfo != null)
+                {
+                    url_info = selectedUrlInfo;
+                    cdnName = ExtractCdnFromExtra(url_info.Extra);
+                }
+            }
+
+            // 3. 检查当前 CDN NAME 是否全等于 cn-gotcha01（忽略大小写）
+            if (cdnName is not null && string.Equals(cdnName, "cn-gotcha01", StringComparison.OrdinalIgnoreCase))
+            {
+                // 如果是 cn-gotcha01，检查自定义CN01SID是否不为空
+                var customCn01Sid = this.room.RoomConfig.CustomCn01Sid;
+                if (!string.IsNullOrWhiteSpace(customCn01Sid))
+                {
+                    var sidList = customCn01Sid!.Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+                    if (sidList.Length > 0)
+                    {
+                        var sid = sidList[this.random.Next(sidList.Length)];
+                        var newHost = $"https://{sid}.bilivideo.com";
+                        this.logger.Information("已使用 SID {Sid} 替换 {OldHost} 为 {NewHost}", sid, url_info.Host, newHost);
+                        url_info.Host = newHost;
+                    }
+                }
+            }
+            else
+            {
+                // 替换Host里 b.bilivideo.com 为 .bilivideo.com 以解决 CDN 劣化
+                if (url_info.Host.Contains("b.bilivideo.com"))
+                {
+                    var newHost = url_info.Host.Replace("b.bilivideo.com", ".bilivideo.com");
+                    this.logger.Information("已修正 {OldHost} 为 {NewHost}", url_info.Host, newHost);
+                    url_info.Host = newHost;
+                }
+            }
 
             var fullUrl = url_info.Host + item.BaseUrl + url_info.Extra;
 

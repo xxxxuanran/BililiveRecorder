@@ -118,6 +118,22 @@ namespace BililiveRecorder.Core.Config.V3
         public Optional<string?> OptionalRecordingQuality { get => this.GetPropertyValueOptional<string>(nameof(this.RecordingQuality)); set => this.SetPropertyValueOptional(value, nameof(this.RecordingQuality)); }
 
         /// <summary>
+        /// 录制CDN
+        /// </summary>
+        public string? RecordingCdn { get => this.GetPropertyValue<string>(); set => this.SetPropertyValue(value); }
+        public bool HasRecordingCdn { get => this.GetPropertyHasValue(nameof(this.RecordingCdn)); set => this.SetPropertyHasValue<string>(value, nameof(this.RecordingCdn)); }
+        [JsonProperty(nameof(RecordingCdn)), EditorBrowsable(EditorBrowsableState.Never)]
+        public Optional<string?> OptionalRecordingCdn { get => this.GetPropertyValueOptional<string>(nameof(this.RecordingCdn)); set => this.SetPropertyValueOptional(value, nameof(this.RecordingCdn)); }
+
+        /// <summary>
+        /// CN01 自定义 SID
+        /// </summary>
+        public string? CustomCn01Sid { get => this.GetPropertyValue<string>(); set => this.SetPropertyValue(value); }
+        public bool HasCustomCn01Sid { get => this.GetPropertyHasValue(nameof(this.CustomCn01Sid)); set => this.SetPropertyHasValue<string>(value, nameof(this.CustomCn01Sid)); }
+        [JsonProperty(nameof(CustomCn01Sid)), EditorBrowsable(EditorBrowsableState.Never)]
+        public Optional<string?> OptionalCustomCn01Sid { get => this.GetPropertyValueOptional<string>(nameof(this.CustomCn01Sid)); set => this.SetPropertyValueOptional(value, nameof(this.CustomCn01Sid)); }
+
+        /// <summary>
         /// FLV修复-检测到可能缺少数据时分段
         /// </summary>
         public bool FlvProcessorSplitOnScriptTag { get => this.GetPropertyValue<bool>(); set => this.SetPropertyValue(value); }
@@ -340,6 +356,22 @@ namespace BililiveRecorder.Core.Config.V3
         public Optional<string?> OptionalRecordingQuality { get => this.GetPropertyValueOptional<string>(nameof(this.RecordingQuality)); set => this.SetPropertyValueOptional(value, nameof(this.RecordingQuality)); }
 
         /// <summary>
+        /// 录制CDN
+        /// </summary>
+        public string? RecordingCdn { get => this.GetPropertyValue<string>(); set => this.SetPropertyValue(value); }
+        public bool HasRecordingCdn { get => this.GetPropertyHasValue(nameof(this.RecordingCdn)); set => this.SetPropertyHasValue<string>(value, nameof(this.RecordingCdn)); }
+        [JsonProperty(nameof(RecordingCdn)), EditorBrowsable(EditorBrowsableState.Never)]
+        public Optional<string?> OptionalRecordingCdn { get => this.GetPropertyValueOptional<string>(nameof(this.RecordingCdn)); set => this.SetPropertyValueOptional(value, nameof(this.RecordingCdn)); }
+
+        /// <summary>
+        /// CN01 自定义 SID
+        /// </summary>
+        public string? CustomCn01Sid { get => this.GetPropertyValue<string>(); set => this.SetPropertyValue(value); }
+        public bool HasCustomCn01Sid { get => this.GetPropertyHasValue(nameof(this.CustomCn01Sid)); set => this.SetPropertyHasValue<string>(value, nameof(this.CustomCn01Sid)); }
+        [JsonProperty(nameof(CustomCn01Sid)), EditorBrowsable(EditorBrowsableState.Never)]
+        public Optional<string?> OptionalCustomCn01Sid { get => this.GetPropertyValueOptional<string>(nameof(this.CustomCn01Sid)); set => this.SetPropertyValueOptional(value, nameof(this.CustomCn01Sid)); }
+
+        /// <summary>
         /// 录制文件名模板
         /// </summary>
         public string? FileNameRecordTemplate { get => this.GetPropertyValue<string>(); set => this.SetPropertyValue(value); }
@@ -559,6 +591,10 @@ namespace BililiveRecorder.Core.Config.V3
         public bool SaveStreamCover => false;
 
         public string RecordingQuality => @"avc10000,hevc10000";
+
+        public string RecordingCdn => @"";
+
+        public string CustomCn01Sid => @"";
 
         public string FileNameRecordTemplate => @"{{ roomId }}-{{ name }}/录制-{{ roomId }}-{{ ""now"" | time_zone: ""Asia/Shanghai"" | format_date: ""yyyyMMdd-HHmmss-fff"" }}-{{ title }}.flv";
 

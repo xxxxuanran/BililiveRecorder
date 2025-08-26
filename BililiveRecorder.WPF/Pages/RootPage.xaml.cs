@@ -63,7 +63,7 @@ namespace BililiveRecorder.WPF.Pages
             this.DataContext = this.Model;
 
             this.InitializeComponent();
-            this.AdvancedSettingsPageItem.Visibility = Visibility.Hidden;
+            this.AdvancedSettingsPageItem.Visibility = Visibility.Visible;
 
             try
             {
@@ -340,7 +340,8 @@ You can uninstall me in system settings.", "安装成功 Installed", MessageBoxB
             if (++this.SettingsClickCount > 1)
             {
                 this.SettingsClickCount = 0;
-                this.AdvancedSettingsPageItem.Visibility = this.AdvancedSettingsPageItem.Visibility != Visibility.Visible ? Visibility.Visible : Visibility.Hidden;
+                // 移除右键隐藏/显示高级设置的切换逻辑，始终保持可见
+                this.AdvancedSettingsPageItem.Visibility = Visibility.Visible;
             }
         }
 

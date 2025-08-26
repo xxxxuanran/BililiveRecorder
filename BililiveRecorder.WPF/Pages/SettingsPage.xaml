@@ -1,9 +1,9 @@
-<ui:Page 
+<ui:Page
     x:Class="BililiveRecorder.WPF.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:ui="http://schemas.modernwpf.com/2019"
     xmlns:l="https://github.com/XAMLMarkupExtensions/WPFLocalizationExtension"
     l:LocalizeDictionary.DesignCulture=""
@@ -15,7 +15,7 @@
     xmlns:local="clr-namespace:BililiveRecorder.WPF.Pages"
     xmlns:config="clr-namespace:BililiveRecorder.Core.Config;assembly=BililiveRecorder.Core"
     xmlns:configv3="clr-namespace:BililiveRecorder.Core.Config.V3;assembly=BililiveRecorder.Core"
-    mc:Ignorable="d" 
+    mc:Ignorable="d"
     d:DesignHeight="1500" d:DesignWidth="500"
     DataContext="{Binding RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=local:RootPage},Path=DataContext.Recorder.Config.Global}"
     Title="SettingsPage">
@@ -71,7 +71,7 @@
                                  IsChecked="{Binding Path=CuttingMode, Converter={StaticResource EnumToBooleanConverter},
                         ConverterParameter={x:Static config:CuttingMode.ByTime}}" />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0" 
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0"
                                 Visibility="{Binding ElementName=CutDisabledRadioButton,Path=IsChecked,Converter={StaticResource InvertBooleanToVisibilityCollapsedConverter}}">
                         <TextBlock Text="{l:Loc Settings_Splitting_TextBox_Left}"/>
                         <TextBox Margin="5,0" Width="100" Text="{Binding CuttingNumber,Delay=500}" ui:TextBoxHelper.IsDeleteButtonVisible="False"/>
@@ -131,7 +131,27 @@
                                  ui:TextBoxHelper.IsDeleteButtonVisible="False" Width="220" HorizontalAlignment="Left"/>
                     </c:SettingWithDefault>
                 </StackPanel>
+
             </GroupBox>
+
+            <GroupBox Header="录制CDN">
+                <StackPanel MaxWidth="400" HorizontalAlignment="Left">
+                    <TextBlock Text="按逗号分割的录制CDN，按顺序匹配 cdn 参数"/>
+                    <c:SettingWithDefault IsSettingNotUsingDefault="{Binding HasRecordingCdn}">
+                        <TextBox Text="{Binding RecordingCdn,UpdateSourceTrigger=PropertyChanged,Delay=1000}"
+                                 ui:TextBoxHelper.IsDeleteButtonVisible="False" Width="260" HorizontalAlignment="Left"/>
+                    </c:SettingWithDefault>
+                    <c:SettingWithDefault IsSettingNotUsingDefault="{Binding HasCustomCn01Sid}">
+                        <StackPanel>
+                            <TextBlock Text="CN01 自定义 SID（逗号分割）"/>
+                            <TextBox Text="{Binding CustomCn01Sid,UpdateSourceTrigger=PropertyChanged,Delay=1000}"
+                                     ui:TextBoxHelper.IsDeleteButtonVisible="False" Width="260" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </c:SettingWithDefault>
+
+                </StackPanel>
+            </GroupBox>
+
             <GroupBox Header="录制条件">
                 <StackPanel>
                     <TextBlock Margin="5" Text="跳过录制的直播标题正则匹配表达式，每行一个" />

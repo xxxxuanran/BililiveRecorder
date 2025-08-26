@@ -562,6 +562,38 @@
             }
           }
         },
+        "RecordingCdn": {
+          "description": "录制CDN\n默认: ",
+          "markdownDescription": "录制CDN  \n默认: ` `\n\n",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "HasValue": {
+              "type": "boolean",
+              "default": true
+            },
+            "Value": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        },
+        "CustomCn01Sid": {
+          "description": "CN01 自定义 SID\n默认: ",
+          "markdownDescription": "CN01 自定义 SID  \n默认: ` `\n\n",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "HasValue": {
+              "type": "boolean",
+              "default": true
+            },
+            "Value": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        },
         "FlvProcessorSplitOnScriptTag": {
           "description": "FLV修复-检测到可能缺少数据时分段\n默认: false",
           "markdownDescription": "FLV修复-检测到可能缺少数据时分段  \n默认: `false `\n\n",
@@ -836,6 +868,38 @@
             "Value": {
               "type": "string",
               "default": "avc10000,hevc10000"
+            }
+          }
+        },
+        "RecordingCdn": {
+          "description": "录制CDN\n默认: ",
+          "markdownDescription": "录制CDN  \n默认: ` `\n\n",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "HasValue": {
+              "type": "boolean",
+              "default": true
+            },
+            "Value": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        },
+        "CustomCn01Sid": {
+          "description": "CN01 自定义 SID\n默认: ",
+          "markdownDescription": "CN01 自定义 SID  \n默认: ` `\n\n",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "HasValue": {
+              "type": "boolean",
+              "default": true
+            },
+            "Value": {
+              "type": "string",
+              "default": ""
             }
           }
         },

@@ -118,6 +118,24 @@
                         </local:SettingWithDefault>
                     </StackPanel>
                 </GroupBox>
+                <GroupBox Header="录制CDN">
+                    <StackPanel>
+                        <TextBlock Text="逗号分割的CDN名称"/>
+                        <local:SettingWithDefault IsSettingNotUsingDefault="{Binding HasRecordingCdn}">
+                            <TextBox Text="{Binding RecordingCdn,UpdateSourceTrigger=PropertyChanged,Delay=1000}"
+                                 ui:TextBoxHelper.IsDeleteButtonVisible="False" Width="220" HorizontalAlignment="Left"/>
+                        </local:SettingWithDefault>
+                        <local:SettingWithDefault IsSettingNotUsingDefault="{Binding HasCustomCn01Sid}">
+                            <StackPanel>
+                                <TextBlock Text="CN01 自定义 SID（逗号分割）"/>
+                                <TextBox Text="{Binding CustomCn01Sid,UpdateSourceTrigger=PropertyChanged,Delay=1000}"
+                                         ui:TextBoxHelper.IsDeleteButtonVisible="False" Width="220" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </local:SettingWithDefault>
+
+                    </StackPanel>
+                </GroupBox>
+
                 <GroupBox Header="录制条件">
                     <StackPanel>
                         <TextBlock Margin="5" Text="跳过录制的直播标题正则匹配表达式，每行一个" />
