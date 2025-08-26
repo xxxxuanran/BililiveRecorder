@@ -320,7 +320,7 @@ namespace BililiveRecorder.Core.Recording
             if (matched != null)
             {
                 this.logger.Information("匹配 CDN 匹配成功。当前CDN {Cdn}, 可用CDN {Available}",
-                    matched.CdnName);
+                    matched.CdnName, availableCdns);
                 return matched.UrlInfo;
             }
 
