@@ -285,6 +285,86 @@ namespace BililiveRecorder.Core.Recording
 
         private static readonly Regex CdnRegex = new(@"[?&]cdn=([^&]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        /// <summary>
+        /// 解析查询字符串为字典
+        /// </summary>
+        private static Dictionary<string, string> ParseQueryString(string? queryString)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (string.IsNullOrEmpty(queryString))
+                return result;
+
+            // 移除开头的 ? 如果存在
+            if (queryString.StartsWith("?"))
+                queryString = queryString.Substring(1);
+
+            var pairs = queryString.Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split(new[] { '=' }, 2);
+                if (parts.Length == 2)
+                {
+                    var key = Uri.UnescapeDataString(parts[0]);
+                    var value = Uri.UnescapeDataString(parts[1]);
+
+                    // 只保留第一次出现的值
+                    if (!result.ContainsKey(key))
+                    {
+                        result[key] = value;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 检查参数是否需要动态展开
+        /// </summary>
+        private static bool IsExpandableParameter(string paramName)
+        {
+            return paramName.Equals("sigparams", StringComparison.OrdinalIgnoreCase)
+                || paramName.Equals("uparams", StringComparison.OrdinalIgnoreCase)
+                || paramName.Equals("signed_payloads", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// 展开动态参数
+        /// </summary>
+        private static Dictionary<string, string> ExpandDynamicParameters(string paramName, string paramValue, Dictionary<string, string> oldParams)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var tokens = paramValue.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var token in tokens)
+            {
+                var trimmed = token.Trim();
+                if (trimmed.Length == 0) continue;
+
+                if (oldParams.TryGetValue(trimmed, out var subValue))
+                {
+                    result[trimmed] = subValue;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 将字典构建为查询字符串
+        /// </summary>
+        private static string BuildQueryString(Dictionary<string, string> parameters)
+        {
+            if (parameters.Count == 0)
+                return string.Empty;
+
+            var pairs = parameters.Select(kvp =>
+                $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}");
+
+            return string.Join("&", pairs);
+        }
+
         private static string? ExtractCdnFromExtra(string? extra)
         {
             if (string.IsNullOrEmpty(extra)) return null;
@@ -295,7 +375,106 @@ namespace BililiveRecorder.Core.Recording
             return match.Success ? match.Groups[1].Value : null;
         }
 
-        private Api.Model.RoomPlayInfo.UrlInfoItem? SelectCdnByConfiguration(Api.Model.RoomPlayInfo.UrlInfoItem[] candidates, string recordingCdn)
+        // 该重载方法支持输入白名单，并且返回值为字典方便合并
+        private static Dictionary<string, string> FilterExtraParameters(string? extra, string allowedParams)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (string.IsNullOrEmpty(extra) || string.IsNullOrEmpty(allowedParams))
+                return result;
+
+            // 解析 extra 为 Dictionary<string, string>
+            var oldParams = ParseQueryString(extra);
+
+            // 解析白名单参数
+            var allowedParamsList = allowedParams.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToArray();
+
+            // 遍历白名单，从 oldParams 获取值
+            foreach (var paramName in allowedParamsList)
+            {
+                if (oldParams.TryGetValue(paramName, out var value))
+                {
+                    result[paramName] = value;
+
+                    // 检查是否需要动态展开
+                    if (IsExpandableParameter(paramName))
+                    {
+                        var expandedParams = ExpandDynamicParameters(paramName, value, oldParams);
+                        foreach (var kvp in expandedParams)
+                        {
+                            if (!result.ContainsKey(kvp.Key))
+                            {
+                                result[kvp.Key] = kvp.Value;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+
+        private static Dictionary<string, string> FilterExtraParametersAsDict(string? extra)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // extra 示例 bmt=1&cdn=cn-gotcha01&expires=1756259034&free_type=0&len=0&mid=0&oi=3746200509&pt=ios&qn=25000&sign=49bad704f32d9338115632ea4771305c&sigparams=cdn,expires,len,oi,pt,qn,trid,bmt&sk=d1b7c1c6f3e8abd796b41dc8eb1109d8&trid=10075ee78515ddf33bcc758636039768ae54
+            if (string.IsNullOrEmpty(extra)) return result;
+
+            // 1) 解析 extra 为 Dictionary<string, string>
+            var oldParams = ParseQueryString(extra);
+
+            // 2) 基础白名单（大小写不敏感）
+            var allowedParams = new[]
+            {
+                "signed_payloads", "sigparams", "upsig", "uparams",
+                "sign", "format", "sk", "free_type", "mid"
+            };
+
+            // 3) 遍历基础白名单，尝试在 oldParams get value，存入字典
+            foreach (var key in allowedParams)
+            {
+                if (oldParams.TryGetValue(key, out var value))
+                {
+                    result[key] = value;
+
+                    // 如果是需要动态展开的值，应该交给同名的重载方法
+                    if (IsExpandableParameter(key))
+                    {
+                        var expandedParams = ExpandDynamicParameters(key, value, oldParams);
+                        foreach (var kvp in expandedParams)
+                        {
+                            if (!result.ContainsKey(kvp.Key))
+                            {
+                                result[kvp.Key] = kvp.Value;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static string? FilterExtraParameters(string? extra)
+        {
+            var filteredParams = FilterExtraParametersAsDict(extra);
+
+            if (filteredParams.Count == 0)
+                return string.Empty;
+
+            // 使用排序字典确保输出顺序一致
+            var sortedParams = new SortedDictionary<string, string>(filteredParams, StringComparer.OrdinalIgnoreCase);
+            // 排序后转回Dictionary<string, string>
+            var finalParams = new Dictionary<string, string>(sortedParams, StringComparer.OrdinalIgnoreCase);
+            return BuildQueryString(finalParams);
+        }
+
+        private Api.Model.RoomPlayInfo.UrlInfoItem? SelectCdn(Api.Model.RoomPlayInfo.UrlInfoItem[] candidates, string recordingCdn)
         {
             var cdnList = recordingCdn.Split(',')
                 .Select(s => s.Trim())
@@ -411,48 +590,63 @@ namespace BililiveRecorder.Core.Recording
             // Prefer non-mcdn hosts if available
             var candidates = url_infos_without_mcdn.Length != 0 ? url_infos_without_mcdn : url_infos;
 
-            // 1. 默认先随机选择 CDN，并提取 cdn name
+            // 默认随机选择 CDN
             var url_info = candidates[this.random.Next(candidates.Length)];
-            var cdnName = ExtractCdnFromExtra(url_info.Extra);
 
-            // 2. 检查 RecordingCdn 是否不为空，如果不为空则运行 CDN 选择
+            // 进行 CDN 选择
             var recordingCdn = this.room.RoomConfig.RecordingCdn;
             if (!string.IsNullOrWhiteSpace(recordingCdn))
             {
-                var selectedUrlInfo = this.SelectCdnByConfiguration(candidates, recordingCdn!);
+                var selectedUrlInfo = this.SelectCdn(candidates, recordingCdn!);
                 if (selectedUrlInfo != null)
                 {
                     url_info = selectedUrlInfo;
-                    cdnName = ExtractCdnFromExtra(url_info.Extra);
                 }
             }
 
-            // 3. 检查当前 CDN NAME 是否全等于 cn-gotcha01（忽略大小写）
-            if (cdnName is not null && string.Equals(cdnName, "cn-gotcha01", StringComparison.OrdinalIgnoreCase))
+            // 预处理 Extra 为字典
+            var extra = ParseQueryString(url_info.Extra);
+            // 当 Host 为 d1--cn-gotcha01.bilivideo.com 时，会采用 302 调度，此时该参数不一定存在
+            var cdnName = extra.TryGetValue("cdn", out var c) ? c : null;
+
+            // CDN 特殊处理
+            if (cdnName is not null)
             {
-                // 如果是 cn-gotcha01，检查自定义CN01SID是否不为空
-                var customCn01Sid = this.room.RoomConfig.CustomCn01Sid;
-                if (!string.IsNullOrWhiteSpace(customCn01Sid))
+                // CN01 替换 SID
+                if (cdnName == "cn-gotcha01")
                 {
-                    var sidList = customCn01Sid!.Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
-                    if (sidList.Length > 0)
+                    var customCn01Sid = this.room.RoomConfig.CustomCn01Sid;
+                    if (!string.IsNullOrWhiteSpace(customCn01Sid))
                     {
-                        var sid = sidList[this.random.Next(sidList.Length)];
-                        var newHost = $"https://{sid}.bilivideo.com";
-                        this.logger.Information("已使用 SID {Sid} 替换 {OldHost} 为 {NewHost}", sid, url_info.Host, newHost);
-                        url_info.Host = newHost;
+                        var sidList = customCn01Sid!.Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+                        if (sidList.Length > 0)
+                        {
+                            var sid = sidList[this.random.Next(sidList.Length)];
+                            var newHost = $"https://{sid}.bilivideo.com";
+                            this.logger.Information("已使用 SID {Sid} 替换 {OldHost} 为 {NewHost}", sid, url_info.Host, newHost);
+                            url_info.Host = newHost;
+                        }
+                    }
+                }
+                else if (cdnName == "cn-gotcha04")
+                {
+                    if (!extra.ContainsKey("dispatch_from"))
+                    {
+                        extra.Add("dispatch_from", "OC_MGR1.2.4.8");
                     }
                 }
             }
-            else
+
+            var extra_string = BuildQueryString(extra);
+            // 使用白名单清理 Extra 参数
+            url_info.Extra = FilterExtraParameters(extra_string);
+
+            // 替换 b.bilivideo.com 为 .bilivideo.com 以同一化 Host
+            if (url_info.Host.Contains("b.bilivideo.com"))
             {
-                // 替换Host里 b.bilivideo.com 为 .bilivideo.com 以解决 CDN 劣化
-                if (url_info.Host.Contains("b.bilivideo.com"))
-                {
-                    var newHost = url_info.Host.Replace("b.bilivideo.com", ".bilivideo.com");
-                    this.logger.Information("已修正 {OldHost} 为 {NewHost}", url_info.Host, newHost);
-                    url_info.Host = newHost;
-                }
+                var newHost = url_info.Host.Replace("b.bilivideo.com", ".bilivideo.com");
+                this.logger.Information("已修正 {OldHost} 为 {NewHost}", url_info.Host, newHost);
+                url_info.Host = newHost;
             }
 
             var fullUrl = url_info.Host + item.BaseUrl + url_info.Extra;
